@@ -3,6 +3,7 @@ package com.streamwise.streamwise.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -24,11 +25,12 @@ public class GroqService {
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    @Cacheable(value = "movieRecommendations", key = "#query.toLowerCase().trim()")
     public String getMovieRecommendations(String query) {
         String prompt = """
                 You are an expert movie recommendation engine.
                 The user is looking for: "%s"
-                
+
                 Return a JSON array of exactly 5 movie recommendations.
                 Each object must have these exact fields:
                 - title: (string) exact movie title
@@ -37,7 +39,7 @@ public class GroqService {
                 - reason: (string) one sentence explaining why this matches the user's request
                 - castHighlight: (string) one notable actor or actress in this film
                 - moodTag: (string) one word mood e.g. Thrilling, Heartwarming, Dark, Fun
-                
+
                 Return ONLY the raw JSON array. No markdown, no backticks, no explanation.
                 Start your response with [ and end with ]
                 """.formatted(query);
@@ -66,7 +68,6 @@ public class GroqService {
                 String.class
         );
 
-        // Parse and extract just the recommendations array
         try {
             JsonNode root = objectMapper.readTree(response.getBody());
             String content = root
@@ -76,10 +77,7 @@ public class GroqService {
                     .path("content")
                     .asText();
 
-            // Clean markdown fences if present
-            content = content.replaceAll("```json|```", "").trim();
-
-            return content;
+            return content.replaceAll("```json|```", "").trim();
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to parse Groq response: " + e.getMessage());

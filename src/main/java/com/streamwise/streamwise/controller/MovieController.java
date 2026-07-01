@@ -1,12 +1,18 @@
 package com.streamwise.streamwise.controller;
 
+import com.streamwise.streamwise.dto.ApiResponse;
+import com.streamwise.streamwise.dto.MovieSearchRequest;
+import com.streamwise.streamwise.model.SearchHistory;
 import com.streamwise.streamwise.service.GroqService;
 import com.streamwise.streamwise.service.SearchHistoryService;
 import com.streamwise.streamwise.service.TmdbService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
-import java.util.Map;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/movies")
@@ -21,41 +27,64 @@ public class MovieController {
     @Autowired
     private SearchHistoryService searchHistoryService;
 
-    // Health check
+    // Health check — public
     @GetMapping("/health")
-    public ResponseEntity<String> health() {
-        return ResponseEntity.ok("StreamWise Backend is running!");
+    public ResponseEntity<ApiResponse<String>> health() {
+        return ResponseEntity.ok(
+                ApiResponse.success("StreamWise Backend is running!", "OK")
+        );
     }
 
-    // GPT Search — calls Groq AI
+    // AI Movie Search — protected
     @PostMapping("/search")
-    public ResponseEntity<String> search(@RequestBody Map<String, String> body) {
-        String query = body.get("query");
-        String userEmail = body.getOrDefault("userEmail", "anonymous");
+    public ResponseEntity<ApiResponse<String>> search(
+            @Valid @RequestBody MovieSearchRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
 
-        if (query == null || query.isBlank()) {
-            return ResponseEntity.badRequest().body("Query cannot be empty");
-        }
+        String userEmail = userDetails.getUsername();
 
-        // Save search to PostgreSQL
-        searchHistoryService.saveSearch(userEmail, query);
+        // Save search history
+        searchHistoryService.saveSearch(userEmail, request.getQuery());
 
-        // Get AI recommendations from Groq
-        String groqResponse = groqService.getMovieRecommendations(query);
+        // Get AI recommendations (cached)
+        String recommendations = groqService.getMovieRecommendations(request.getQuery());
 
-        return ResponseEntity.ok(groqResponse);
+        return ResponseEntity.ok(
+                ApiResponse.success("Movies fetched successfully", recommendations)
+        );
     }
 
-    // TMDB movie search — fetch poster + rating
+    // TMDB Search — protected
     @GetMapping("/tmdb")
-    public ResponseEntity<String> tmdbSearch(@RequestParam String title) {
+    public ResponseEntity<ApiResponse<String>> tmdbSearch(
+            @RequestParam String title) {
         String result = tmdbService.searchMovie(title);
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(
+                ApiResponse.success("TMDB results fetched", result)
+        );
     }
 
-    // Get search history for a user
+    // Get search history — protected
     @GetMapping("/history")
-    public ResponseEntity<?> getHistory(@RequestParam String userEmail) {
-        return ResponseEntity.ok(searchHistoryService.getSearchHistory(userEmail));
+    public ResponseEntity<ApiResponse<List<SearchHistory>>> getHistory(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String userEmail = userDetails.getUsername();
+        List<SearchHistory> history =
+                searchHistoryService.getSearchHistory(userEmail);
+        return ResponseEntity.ok(
+                ApiResponse.success("Search history fetched", history)
+        );
+    }
+
+    // Delete search history — protected
+    @DeleteMapping("/history/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteHistory(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String userEmail = userDetails.getUsername();
+        searchHistoryService.deleteSearch(id, userEmail);
+        return ResponseEntity.ok(
+                ApiResponse.success("Search history deleted")
+        );
     }
 }

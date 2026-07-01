@@ -1,19 +1,16 @@
 package com.streamwise.streamwise.model;
 
 import jakarta.persistence.*;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.time.LocalDateTime;
 
 @Data
-@NoArgsConstructor
 @AllArgsConstructor
+@NoArgsConstructor
 @Entity
-@Table(name="search_history")
+@Table(name = "search_history")
 public class SearchHistory {
 
     @Id

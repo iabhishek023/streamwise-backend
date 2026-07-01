@@ -8,4 +8,5 @@ import java.util.List;
 @Repository
 public interface SearchHistoryRepository extends JpaRepository<SearchHistory, Long> {
     List<SearchHistory> findByUserEmailOrderBySearchedAtDesc(String userEmail);
+    void deleteByIdAndUserEmail(Long id, String userEmail);
 }

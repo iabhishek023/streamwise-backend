@@ -1,6 +1,7 @@
 package com.streamwise.streamwise.service;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -16,10 +17,11 @@ public class TmdbService {
 
     private final RestTemplate restTemplate = new RestTemplate();
 
+    @Cacheable(value = "tmdbResults", key = "#movieTitle.toLowerCase().trim()")
     public String searchMovie(String movieTitle) {
-        String url = tmdbApiUrl + "/search/movie?query=" +
-                movieTitle.replace(" ", "%20") +
-                "&include_adult=false&language=en-US&page=1";
+        String url = tmdbApiUrl + "/search/movie?query="
+                + movieTitle.replace(" ", "%20")
+                + "&include_adult=false&language=en-US&page=1";
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", "Bearer " + bearerToken);
