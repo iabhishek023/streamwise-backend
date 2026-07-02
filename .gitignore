@@ -46,4 +46,5 @@ application-secret.properties
 *.log
 logs/
 
-src/main/resources/application.properties
+#src/main/resources/application.properties
+src/main/resources/application-local.properties
